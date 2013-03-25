@@ -3,6 +3,8 @@ FregeC_VERSION  = '3.21.107-g4bd09eb'
 FregeC_URL      = "http://frege.googlecode.com/files/frege#{FregeC_VERSION}.jar"
 FregeC          = download(artifact("frege:frege:jar:#{FregeC_VERSION}")=>FregeC_URL)
 
+Project.local_task :run
+
 # top-level project:
 project 'ParseLib' do
   extend Frege
@@ -15,7 +17,9 @@ project 'ParseLib' do
     :other  => %w{-encoding utf-8})
   
   compile.with FregeC
-  compile.from _(:target,:java)
+  compile.from(_(:src,:java),_(:target,:java))
+  
+  run.using :main => 'parselib.examples.JArith'
   
   # file task to generate java sources
   file _(:target,:java) => [

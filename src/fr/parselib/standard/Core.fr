@@ -1,7 +1,7 @@
 module parselib.standard.Core where
 
 import frege.Prelude hiding (empty)
-import frege.control.Alternative public
+import frege.control.Alternative
 import parselib.simple.Core as SP ()
 
 --- An input string is mapped to a list of successful parses.

@@ -1,11 +1,11 @@
 module parselib.standard.Derived where
 
 import frege.Prelude hiding (empty,sequence)
+import frege.control.Alternative
 import parselib.standard.Core
+import parselib.simple.Derived as SP ()
 
 infixl 4 `<$`
-infixl 4 `<*`
-infixl 4 `*>`
 
 --- Variant of '<$>' that ignores the result of the parser.
 ---
@@ -96,6 +96,10 @@ pMany p = (:) <$> p <*> pMany p <<|> return []
 pSome :: Parser s b -> Parser s [b]
 pSome p = (:) <$> p <*> pMany p
 
---- Succeeds only on the end of the input.
+--- Succeeds only on the end of the input. Oddly enough the original
+--- version gave a type unification error, but this should theoreticall work.
+---
+--- > pEnd = look >>= (\xs -> if null xs then return () else empty)
+---
 pEnd :: Parser s ()
-pEnd = look >>= (\xs -> if null xs then return () else empty)
+pEnd = Parser SP.pEnd
