@@ -1,7 +1,8 @@
-module parselib.abstract.Applications where
+module parselib.standard.Applications where
 
-import parselib.abstract.Core
-import parselib.abstract.Derived
+import frege.Prelude hiding (empty,sequence)
+import parselib.standard.Core
+import parselib.standard.Derived
 
 pure native isDigit         java.lang.Character.isDigit         :: Char -> Bool
 pure native getNumericValue java.lang.Character.getNumericValue :: Char -> Int
@@ -18,9 +19,9 @@ pNatural :: Parser Char Int
 pNatural = foldl (\a \b -> a * 10 + b) 0 <$> pSome pDigitAsInt
 
 pInteger :: Parser Char Int
-pInteger = (const negate <$> (pSymbol '-')) `option` id  <*>  natural 
+pInteger = (const negate <$> (pSymbol '-')) `opt` id <*> pNatural 
 
-pIdent :: Parser Char String
+pIdent :: Parser Char [Char]
 pIdent = (:) <$> pSatisfy isLetter <*> pMany (pSatisfy isLetterOrDigit)
 
 pParens :: Parser Char a -> Parser Char a

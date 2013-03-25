@@ -1,5 +1,6 @@
 module parselib.Standard where
 
-import parselib.standard.Core
-import parselib.standard.Derived
-import parselib.standard.Applications
+import frege.Prelude hiding (empty,sequence)
+import parselib.standard.Core public
+import parselib.standard.Derived public
+import parselib.standard.Applications public

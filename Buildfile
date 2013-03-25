@@ -20,6 +20,7 @@ project 'ParseLib' do
   # file task to generate java sources
   file _(:target,:java) => [
     frc('parselib.Simple'),
+    frc('parselib.Standard'),
     frc('parselib.examples.Arith')]
     
   # compile parselib.examples to java
@@ -41,12 +42,12 @@ project 'ParseLib' do
         fr('parselib.standard.Applications'),
         frc('parselib.standard.Derived'),
         frc('parselib.standard.Core')] do
-    fregec('parselib.standard.Core')
+    fregec('parselib.standard.Applications')
   end
   file frc('parselib.standard.Derived') => [
         fr('parselib.standard.Derived'),
         frc('parselib.standard.Core')] do
-    fregec('parselib.standard.Core')
+    fregec('parselib.standard.Derived')
   end
   file frc('parselib.standard.Core') => [
         fr('parselib.standard.Core'),

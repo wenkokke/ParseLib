@@ -1,7 +1,7 @@
 module parselib.standard.Core where
 
 import frege.Prelude hiding (empty)
-import frege.control.Alternative
+import frege.control.Alternative public
 import parselib.simple.Core as SP ()
 
 --- An input string is mapped to a list of successful parses.
@@ -16,6 +16,20 @@ instance Functor (Parser s) where
 instance Applicative (Parser s) where
   return x = Parser (SP.return x)
   p <*> q  = Parser (runParser p SP.<*> runParser q)
+  
+  --- Variant of '<*>' that ignores the result of the right
+  --- argument.
+  ---
+  --- > f <* p = const <$> p <*> q
+  ---
+  p <* q = const <$> p <*> q
+
+  --- Variant of '*>' that ignores the result of the left
+  --- argument.
+  ---
+  --- > f *> p = flip const <$> p <*> q
+  ---
+  p *> q = flip const <$> p <*> q
 
 instance Alternative (Parser s) where
   empty   = Parser (SP.empty)
@@ -32,7 +46,7 @@ instance Monad (Parser s) where
   p >>= f = Parser (runParser p SP.>>= (runParser . f))
 
 instance MonadZero (Parser s) where
-  mzero = Alternative_Parser.empty
+  mzero = empty
   
 instance MonadPlus (Parser s) where
   mplus = (<|>)

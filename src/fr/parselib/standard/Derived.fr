@@ -1,5 +1,6 @@
 module parselib.standard.Derived where
 
+import frege.Prelude hiding (empty,sequence)
 import parselib.standard.Core
 
 infixl 4 `<$`
@@ -13,25 +14,9 @@ infixl 4 `*>`
 (<$) :: b -> Parser s a -> Parser s b
 f <$ p = const f <$> p
 
---- Variant of '<*>' that ignores the result of the right
---- argument.
----
---- > f <* p = const <$> p <*> q
----
-(<*) :: Parser s a -> Parser s b -> Parser s a
-p <* q = const <$> p <*> q
-
---- Variant of '*>' that ignores the result of the left
---- argument.
----
---- > f *> p = flip const <$> p <*> q
----
-(*>) :: Parser s a -> Parser s b -> Parser s b
-p *> q = flip const <$> p <*> q
-
 --- Parser for pEpsilon that does return '()'.
 pEpsilon :: Parser s ()
-pEpsilon = pure ()
+pEpsilon = return ()
 
 --- Parses a specific given pSymbol.
 pSymbol :: Eq s  => s -> Parser s s
@@ -39,7 +24,7 @@ pSymbol x = pSatisfy (==x)
 
 --- Parses a specific given sequence of pSymbols.
 pToken :: Eq s => [s] -> Parser s [s]
-pToken []     = pure []
+pToken []     = return []
 pToken (x:xs) = (:) <$> pSymbol x <*> pToken xs
 
 --- Takes three parsers: a delimiter, the parser for the
@@ -52,8 +37,8 @@ pPack p r q  =  p *> r <* q
 --- Takes a list of parsers and combines them in
 --- sequence, returning a list of results.
 sequence :: [Parser s a] -> Parser s [a]
-sequence []      =  pure []
-sequence (p:ps)  =  (:) <$> p <*> sequence ps
+sequence []     = return []
+sequence (p:ps) = (:) <$> p <*> sequence ps
 
 --- Takes a list of parsers and combines them using
 --- choice.
@@ -63,7 +48,7 @@ choice = foldr (<|>) empty
 --- Parses an optional element. Takes the default value
 --- as its second argument.
 opt :: Parser s a -> a -> Parser s a
-opt p d = p <|> pure d
+opt p d = p <|> return d
 
 --- Variant of 'option' that returns a 'Maybe',
 --- provided for compatibility with the applicative interface.
@@ -73,7 +58,7 @@ pMaybe p = opt (Just <$> p) Nothing
 --- Parses many, i.e., zero or more, occurrences of
 --- a given parser.
 pMany_ng :: Parser s a  -> Parser s [a]
-pMany_ng p  =  (:) <$> p <*> pMany_ng p <|> pure []
+pMany_ng p  = (:) <$> p <*> pMany_ng p <|> return []
 
 --- Parser some, i.e., one or more, occurrences of
 --- a given parser.
@@ -90,7 +75,7 @@ pListSep p s = (:) <$> p <*> pMany (s *> p)
 --- combined using the operator associated with @po@ in a
 --- right-associative way.
 chainr  ::  Parser s a -> Parser s (a -> a -> a) -> Parser s a
-chainr pe po  =  h <$> many (j <$> pe <*> po) <*> pe
+chainr pe po  =  h <$> pMany (j <$> pe <*> po) <*> pe
   where j x op  =  (x `op`)
         h fs x  =  foldr ($) x fs
 
@@ -99,19 +84,18 @@ chainr pe po  =  h <$> many (j <$> pe <*> po) <*> pe
 --- combined using the operator associated with @po@ in a
 --- left-associative way.
 chainl  ::  Parser s a -> Parser s (a -> a -> a) -> Parser s a
-chainl pe po  =  h <$> pe <*> many (j <$> po <*> pe)
+chainl pe po  =  h <$> pe <*> pMany (j <$> po <*> pe)
   where j op x  =  (`op` x)
         h x fs  =  foldl (flip ($)) x fs
 
 --- Greedy variant of 'many'.
 pMany :: Parser s b -> Parser s [b]
-pMany p = (:) <$> p <*> pMany p <<|> pure []
+pMany p = (:) <$> p <*> pMany p <<|> return []
 
 --- Greedy variant of 'many1'.
 pSome :: Parser s b -> Parser s [b]
-pSome p = (:) <$> p <*> pMany
+pSome p = (:) <$> p <*> pMany p
 
 --- Succeeds only on the end of the input.
 pEnd :: Parser s ()
-pEnd = look >>= \xs -> if null xs then pure () else empty
-
+pEnd = look >>= (\xs -> if null xs then return () else empty)

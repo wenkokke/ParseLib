@@ -18,10 +18,16 @@ public final class JArith {
 	 * </pre?
 	 */
 	public static void main(String[] args) {
-		show(parse("(+ 1 3)"));
+		
+    // some simple demonstrations
+    show(parse("(+ 1 3)"));
+    show(parse("(* -5 2)"));
 		show(parse("(* (+ 10 4) (* 3 8))"));
+    
+    // some junk that won't parse
 		show(parse("(+)"));
 		show(parse("(+ a)"));
+    show(parse("(1 2 3)"));
 	}
 	
 	public static final TExpr parse(String input) {
