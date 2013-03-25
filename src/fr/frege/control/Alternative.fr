@@ -1,0 +1,12 @@
+module frege.control.Alternative where
+
+import frege.Prelude hiding (empty)
+
+infixr 3 `<|>`
+
+--- A monoid on applicative functors.
+class Alternative (Applicative f) => f where
+  --- The identity of '<|>'
+  empty :: f a
+  --- An associative binary operation
+  (<|>) :: f a -> f a -> f a

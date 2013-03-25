@@ -1,0 +1,55 @@
+module parselib.standard.Core where
+
+import frege.Prelude hiding (empty)
+import frege.control.Alternative
+import parselib.simple.Core as SP ()
+
+--- An input string is mapped to a list of successful parses.
+--- For each succesful parse, we return the result of type 'r',
+--- and the remaining input string. The input must be a list of
+--- symbols.
+data Parser s r = Parser ([s] -> [(r,[s])])
+
+instance Functor (Parser s) where
+  fmap f p =  Parser (f SP.<$> runParser p)
+
+instance Applicative (Parser s) where
+  return x = Parser (SP.return x)
+  p <*> q  = Parser (runParser p SP.<*> runParser q)
+
+instance Alternative (Parser s) where
+  empty   = Parser (SP.empty)
+  p <|> q = Parser (runParser p SP.<|> runParser q)
+
+infixr 3 `<<|>`
+
+--- Biased choice. If the left hand side parser succeeds,
+--- the right hand side is not considered. Use with care!
+(<<|>) :: Parser s a -> Parser s a -> Parser s a
+p <<|> q = Parser (runParser p SP.<<|> runParser q)
+
+instance Monad (Parser s) where
+  p >>= f = Parser (runParser p SP.>>= (runParser . f))
+
+instance MonadZero (Parser s) where
+  mzero = Alternative_Parser.empty
+  
+instance MonadPlus (Parser s) where
+  mplus = (<|>)
+
+--- Parses any single symbol.
+pAny :: Parser s s
+pAny = Parser SP.pAny
+
+--- Takes a predicate and returns a parser that parses a
+--- single symbol satisfying that predicate.
+pSatisfy :: (s -> Bool) -> Parser s s
+pSatisfy p = Parser (SP.pSatisfy p)
+
+--- Returns the rest of the input without consuming anything.
+look :: Parser s [s]
+look = Parser (\xs -> [(xs, xs)])
+
+--- Runs a parser on a given string.
+runParser :: Parser s r -> [s] -> [(r,[s])]
+runParser (Parser f) = f

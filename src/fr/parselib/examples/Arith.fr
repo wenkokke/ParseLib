@@ -1,9 +1,7 @@
 module parselib.examples.Arith where
 
+import frege.Prelude hiding (>>=,<$>,<*>,<*,*>,empty,return,sequence)
 import parselib.Simple
-import frege.Prelude hiding (>>=,<$>,<*>,<*,*>,sequence)
-
--- simple parser for basic arithmetic
 
 data Expr = Num Int
           | Add Expr Expr
@@ -11,6 +9,7 @@ data Expr = Num Int
           
 derive Show Expr
           
+--- simple parser for basic arithmetic
 pExpr :: Parser Char Expr
 pExpr = pNum <<|> pAdd <|> pMul
   where
@@ -19,6 +18,7 @@ pExpr = pNum <<|> pAdd <|> pMul
   pMul = let sMul = pSymbol '*' in pParens $ Mul <$ (sMul <* sWSP) <*> (pExpr <* sWSP) <*> pExpr
   sWSP = pSymbol ' '
   
+--- top-level function for running parser
 parse :: String -> Maybe Expr
 parse input =
   let

@@ -1,0 +1,39 @@
+module parselib.abstract.Applications where
+
+import parselib.abstract.Core
+import parselib.abstract.Derived
+
+pure native isDigit         java.lang.Character.isDigit         :: Char -> Bool
+pure native getNumericValue java.lang.Character.getNumericValue :: Char -> Int
+pure native isLetter        java.lang.Character.isLetter        :: Char -> Bool
+pure native isLetterOrDigit java.lang.Character.isLetterOrDigit :: Char -> Bool
+
+pDigit :: Parser Char Char
+pDigit = pSatisfy isDigit
+
+pDigitAsInt :: Parser Char Int
+pDigitAsInt = getNumericValue <$> pDigit
+
+pNatural :: Parser Char Int
+pNatural = foldl (\a \b -> a * 10 + b) 0 <$> pSome pDigitAsInt
+
+pInteger :: Parser Char Int
+pInteger = (const negate <$> (pSymbol '-')) `option` id  <*>  natural 
+
+pIdent :: Parser Char String
+pIdent = (:) <$> pSatisfy isLetter <*> pMany (pSatisfy isLetterOrDigit)
+
+pParens :: Parser Char a -> Parser Char a
+pParens p = pPack (pSymbol '(') p (pSymbol ')')
+
+pBracket :: Parser Char a -> Parser Char a
+pBracket p = pPack (pSymbol '[') p (pSymbol ']')
+
+pBraced :: Parser Char a -> Parser Char a
+pBraced p = pPack (pSymbol '{') p (pSymbol '}')
+
+pList :: Parser Char a -> Parser Char [a]
+pList p = pListSep p (pSymbol ',')
+
+pSemiList :: Parser Char a -> Parser Char [a]
+pSemiList p = pListSep p (pSymbol ';')
