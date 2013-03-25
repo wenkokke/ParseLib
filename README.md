@@ -14,7 +14,7 @@ newer [uu-parsinglib package][uu-parsinglib].
 
 An implementation of `Control.Alternative` is provided with the package, as this typeclass
 is not present in Frege. It is imported internally in the `parselib.Standard` package, but
-not exported (for the obvious reasons). Therefore, one should import it as `Frege.control.Alternative`.
+not exported (for the obvious reasons). Therefore, one should import it as `frege.control.Alternative`.
 
 
 ### Buildfile
