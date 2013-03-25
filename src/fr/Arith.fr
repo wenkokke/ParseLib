@@ -1,0 +1,29 @@
+module parselib.examples.Arith where
+
+import parselib.Simple
+import frege.Prelude hiding (>>=,<$>,<*>,<*,*>,sequence)
+
+-- simple parser for basic arithmetic
+
+data Expr = Num Int
+          | Add Expr Expr
+          | Mul Expr Expr
+          
+derive Show Expr
+          
+pExpr :: Parser Char Expr
+pExpr = pNum <<|> pAdd <|> pMul
+  where
+  pNum = Num <$> pNatural
+  pAdd = let sAdd = pSymbol '+' in pParens $ Add <$ (sAdd <* sWSP) <*> (pExpr <* sWSP) <*> pExpr
+  pMul = let sMul = pSymbol '*' in pParens $ Mul <$ (sMul <* sWSP) <*> (pExpr <* sWSP) <*> pExpr
+  sWSP = pSymbol ' '
+  
+parse :: String -> Maybe Expr
+parse input =
+  let
+    parse = runParser pExpr (unpacked input)
+  in case parse of
+    [(expr, [])] -> Just expr
+    _ -> Nothing
+  

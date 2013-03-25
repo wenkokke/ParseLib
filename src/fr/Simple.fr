@@ -1,0 +1,226 @@
+module parselib.Simple where
+
+import frege.Prelude hiding (>>=,<$>,<*>,<*,*>,sequence)
+
+-- | An input string is mapped to a list of successful parses.
+-- For each succesful parse, we return the result of type 'r',
+-- and the remaining input string. The input must be a list of
+-- symbols.
+type Parser s r = [s] -> [(r,[s])]
+
+-- | Parses any single symbol.
+pAny :: Parser s s
+pAny (x:xs) = [(x,xs)]
+pAny []     = []
+
+-- | Takes a predicate and returns a parser that parses a
+-- single symbol pSatisfying that predicate.
+pSatisfy  ::  (s -> Bool) -> Parser s s
+pSatisfy p (x:xs) | p x       =  [(x,xs)]
+pSatisfy _ _                  =  []
+
+-- | Parser for the pEmpty language, i.e., parser that always fails.
+pEmpty :: Parser s a
+pEmpty xs = []
+
+-- | Same as 'pEmpty'; provided for compatibility with the lecture notes.
+pFail :: Parser s a
+pFail = pEmpty
+
+-- | Parser that always succeeds, i.e., for pEpsilon.
+pure :: a -> Parser s a
+pure r xs = [(r,xs)]
+
+infixl 4 `<$>` `<*>`
+infixr 3 `<|>` `<<|>`
+infixl 1 `>>=`
+
+-- | Choice between two parsers with the same result type.
+(<|>) :: Parser s a -> Parser s a -> Parser s a
+(p <|> q) xs  =  p xs ++ q xs
+
+-- | Biased choice. If the left hand side parser succeeds,
+-- the right hand side is not considered. Use with care!
+(p <<|> q) xs  =  let r = p xs in if null r then q xs else r
+
+-- | Sequence of two parsers.
+(<*>) :: Parser s (b -> a) -> Parser s b -> Parser s a
+(p <*> q) xs  =  [(f x,zs)
+                 |(f  ,ys) <- p xs
+                 ,(  x,zs) <- q ys
+                 ]
+
+-- | Map a function over the results of a parser. The '<$>' combinator
+-- can also be defined in terms of 'succeed' and '<*>':
+--
+-- > f <$> p  =  succeed f <*> p
+--
+(<$>) :: (a -> b) -> Parser s a -> Parser s b
+(f <$> p) xs  =  [(f y,ys)
+                 |(  y,ys) <- p xs
+                 ]
+
+-- | Monadic bind. Do not use this combinator unless absolutely
+-- required. Most sequencing can be done with '<*>'.
+(>>=) :: Parser s a -> (a -> Parser s b) -> Parser s b
+(p >>= f) xs  =  [(z  ,zs)
+                 |(y  ,ys) <- p xs
+                 ,(z  ,zs) <- f y ys
+                 ]
+
+-- | Returns the rest of the input without consuming anything.
+look :: Parser s [s]
+look xs = [(xs, xs)]
+
+-- | For compatibility with the "newtype" version of the library:
+-- runs a parser on a given string.
+runParser :: Parser s a -> [s] -> [(a, [s])]
+runParser = id
+
+infixl 4 `<$`
+infixl 4 `<*`
+infixl 4 `*>`
+
+-- | Variant of '<$>' that ignores the result of the parser.
+--
+-- > f <$ p = const f <$> p
+--
+(<$) :: b -> Parser s a -> Parser s b
+f <$ p = const f <$> p
+
+-- | Variant of '<*>' that ignores the result of the right
+-- argument.
+--
+-- > f <* p = const <$> p <*> q
+--
+(<*) :: Parser s a -> Parser s b -> Parser s a
+p <* q = const <$> p <*> q
+
+-- | Variant of '*>' that ignores the result of the left
+-- argument.
+--
+-- > f *> p = flip const <$> p <*> q
+--
+(*>) :: Parser s a -> Parser s b -> Parser s b
+p *> q = flip const <$> p <*> q
+
+-- | Parser for pEpsilon that does return '()'.
+pEpsilon :: Parser s ()
+pEpsilon = pure ()
+
+-- | Parses a specific given symbol.
+pSymbol :: Eq s  => s -> Parser s s
+pSymbol x = pSatisfy (==x)
+
+-- | Parses a specific given sequence of symbols.
+pToken :: Eq s => [s] -> Parser s [s]
+pToken []     = pure []
+pToken (x:xs) = (:) <$> pSymbol x <*> pToken xs
+
+-- | Takes three parsers: a delimiter, the parser for the
+-- content, and another delimiter. Constructs a sequence of
+-- the three, but returns only the result of the enclosed
+-- parser.
+pPack :: Parser s a -> Parser s b -> Parser s c -> Parser s b
+pPack p r q  =  p *> r <* q
+
+-- | Takes a list of parsers and combines them in
+-- sequence, returning a list of results.
+sequence :: [Parser s a] -> Parser s [a]
+sequence []      =  pure []
+sequence (p:ps)  =  (:) <$> p <*> sequence ps
+
+-- | Takes a list of parsers and combines them using
+-- choice.
+choice :: [Parser s a] -> Parser s a
+choice = foldr (<|>) pEmpty
+
+-- | Parses an optional element. Takes the default value
+-- as its second argument.
+opt :: Parser s a -> a -> Parser s a
+opt p d = p <|> pure d
+
+-- | Variant of 'option' that returns a 'Maybe',
+-- provided for compatibility with the applicative interface.
+optional :: Parser s a -> Parser s (Maybe a)
+optional p = opt (Just <$> p) Nothing
+
+-- | Parses many, i.e., zero or more, occurrences of
+-- a given parser.
+pMany_ng :: Parser s a  -> Parser s [a]
+pMany_ng p  =  (:) <$> p <*> pMany_ng p <|> pure []
+
+-- | Parser some, i.e., one or more, occurrences of
+-- a given parser.
+pSome_ng :: Parser s a -> Parser s [a]
+pSome_ng p = (:) <$> p <*> pMany_ng p
+
+-- | Takes a parser @p@ and a separator parser @s@. Parses
+-- a sequence of @p@s that is separated by @s@s.
+pListSep :: Parser s a -> Parser s b -> Parser s [a]
+pListSep p s = (:) <$> p <*> pMany_ng (s *> p)
+
+-- | Takes a parser @pe@ and an operator parser @po@. Parses
+-- a sequence of @pe@s separated by @po@s. The results are
+-- combined using the operator associated with @po@ in a
+-- right-associative way.
+chainr :: Parser s a -> Parser s (a -> a -> a) -> Parser s a
+chainr pe po  =  h <$> pMany_ng (j <$> pe <*> po) <*> pe
+  where j x op  =  (x `op`)
+        h fs x  =  foldr ($) x fs
+
+-- | Takes a parser @pe@ and an operator parser @po@. Parses
+-- a sequence of @pe@s separated by @po@s. The results are
+-- combined using the operator associated with @po@ in a
+-- left-associative way.
+chainl :: Parser s a -> Parser s (a -> a -> a) -> Parser s a
+chainl pe po  =  h <$> pe <*> pMany_ng (j <$> po <*> pe)
+  where j op x  =  (`op` x)
+        h x fs  =  foldl (flip ($)) x fs
+
+-- | Greedy variant of 'pMany_ng'.
+pMany :: Parser s b -> Parser s [b]
+pMany p  =  (:) <$> p <*> pMany p <<|> pure []
+
+-- | Greedy variant of 'many1'.
+pSome :: Parser s b -> Parser s [b]
+pSome p = (:) <$> p <*> pMany p
+
+-- | Succeeds only on the end of the input.
+pEnd :: Parser s ()
+pEnd = look >>= (\xs -> if null xs then pure () else pFail)
+
+pure native isDigit         java.lang.Character.isDigit         :: Char -> Bool
+pure native getNumericValue java.lang.Character.getNumericValue :: Char -> Int
+pure native isLetter        java.lang.Character.isLetter        :: Char -> Bool
+pure native isLetterOrDigit java.lang.Character.isLetterOrDigit :: Char -> Bool
+
+pDigit :: Parser Char Char
+pDigit = pSatisfy isDigit
+
+pDigitAsInt :: Parser Char Int
+pDigitAsInt = getNumericValue <$> pDigit
+
+pNatural :: Parser Char Int
+pNatural = foldl (\a \b -> a * 10 + b) 0 <$> pSome pDigitAsInt
+
+pInteger :: Parser Char Int
+pInteger = (const negate <$> (pSymbol '-')) `opt` id <*> pNatural 
+
+pIdent :: Parser Char [Char]
+pIdent = (:) <$> pSatisfy isLetter <*> pMany (pSatisfy isLetterOrDigit)
+
+pParens :: Parser Char a -> Parser Char a
+pParens p = pPack (pSymbol '(') p (pSymbol ')')
+
+pBracket :: Parser Char a -> Parser Char a
+pBracket p = pPack (pSymbol '[') p (pSymbol ']')
+
+pBrace :: Parser Char a -> Parser Char a
+pBrace p = pPack (pSymbol '{') p (pSymbol '}')
+
+pList :: Parser Char a -> Parser Char [a]
+pList p = pListSep p (pSymbol ',')
+
+pSemiList :: Parser Char a -> Parser Char [a]
+pSemiList p = pListSep p (pSymbol ';')
